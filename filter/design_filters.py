@@ -1,8 +1,7 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # Calculate coefficients of filters for STM32-SDR.
 # 2020-10-03  T. Nakagawa
 
-import matplotlib.pyplot as plt
 import numpy as np
 import scipy.signal
 
@@ -21,8 +20,8 @@ def cic(w):
           if w else 1.)
 
 freq = np.arange(P) / (P - 1.)
-gain = 1. / np.array(map(cic, freq * np.pi / M))
-gain[P / L:] = 0.
+gain = 1. / np.array(list(map(cic, freq * np.pi / M)))
+gain[P // L:] = 0.
 fir = scipy.signal.firwin2(T, freq, gain)
 
 print('// Coefficients for decimation FIR filter with CIC compensation.')
@@ -53,7 +52,7 @@ def biquad(c, s):
   return bb, aa
 
 O = 2                                 # Order of the filter.
-C = [50., 100., 200., 500.,
+C = [200., 500.,
      1.e3, 2.e3, 5.e3, 10.e3, 20.e3]  # Cutoff frequencies.
 S = 46875.0                           # Sampling rate (Hz).
 

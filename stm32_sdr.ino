@@ -32,6 +32,9 @@ constexpr int ADC_FREQ = 6000000;				// ADC sampling frequency.
 constexpr int CWT_FREQ = 800;					// CW tone frequency.
 constexpr uint16_t colors[8] = {0x0000, 0x00f8, 0xe007, 0xe0ff, 0x1f00, 0x1ff8, 0xff07, 0xffff};  // Black, red, green, yellow, blue, magenta, cyan, white in little endian.
 constexpr float NCO_CALIB = 4000000.0f / 3970936.0f;
+constexpr float DEM_ALPHA = 0.95f;
+constexpr float AGC_DECAY = 0.9995f;
+constexpr float AGC_THRESHOLD = 0.001f;
 
 static float hlb_coeff_inv[31];
 static int16_t adc_buf[2 * ADC_BUF_SIZE];		// ADC buffer (double buffering).
@@ -54,7 +57,6 @@ static struct {
   uint32_t time_fir;
   uint32_t time_bpf;
   uint32_t time_dem;
-  uint32_t time_amp;
   uint32_t freq_fft;
 } stat;
 
@@ -113,38 +115,43 @@ void dsp_handler() {
   // FIR decimator (1/4).
   static float fir_state[2 * 32];
   decimator_fir(fir_coeff, fir_state     , WRK_BUF_SIZE, wrk_buf               , wrk_buf               );
-  decimator_fir(fir_coeff, fir_state + 32, WRK_BUF_SIZE, wrk_buf + WRK_BUF_SIZE, wrk_buf + DAC_BUF_SIZE);
+  decimator_fir(fir_coeff, fir_state + 32, WRK_BUF_SIZE, wrk_buf + WRK_BUF_SIZE, wrk_buf + WRK_BUF_SIZE);
+  time_end = micros(); stat.time_fir = time_end - time_bgn; time_bgn = time_end;
   if (fft_empty) {
-    snapshot((1 << config.fft_gain) - 1, DAC_BUF_SIZE, wrk_buf, fft_buf);
+    snapshot((1 << config.fft_gain) - 1, DAC_BUF_SIZE, wrk_buf, wrk_buf + WRK_BUF_SIZE, fft_buf);
     fft_empty = false;
   }
-  time_end = micros(); stat.time_fir = time_end - time_bgn; time_bgn = time_end;
 
   // Band pass filter.
   static float bpf_state[2 * 6];
   bpf_iir(iir_coeff[config.bpf], bpf_state    , DAC_BUF_SIZE, wrk_buf               , wrk_buf               );
-  bpf_iir(iir_coeff[config.bpf], bpf_state + 6, DAC_BUF_SIZE, wrk_buf + DAC_BUF_SIZE, wrk_buf + DAC_BUF_SIZE);
+  bpf_iir(iir_coeff[config.bpf], bpf_state + 6, DAC_BUF_SIZE, wrk_buf + WRK_BUF_SIZE, wrk_buf + WRK_BUF_SIZE);
   time_end = micros(); stat.time_bpf = time_end - time_bgn; time_bgn = time_end;
 
   // Demodulation.
   if (config.demodulation == 0) {		// AM.
-    demodulator_amplitude(DAC_BUF_SIZE, wrk_buf, wrk_buf);
+    static float dem_state;
+    demodulator_amplitude(DEM_ALPHA, dem_state, DAC_BUF_SIZE, wrk_buf, wrk_buf + WRK_BUF_SIZE, wrk_buf);
   } else if (config.demodulation == 1) {	// CW.
-    demodulator_mixer(cwt_tbl, DAC_BUF_SIZE, wrk_buf, wrk_buf);
-  } else {
-    static float hlb_state[46];
-    if (config.demodulation == 2) {		// USB.
-      demodulator_hilbert(hlb_coeff    , hlb_state, DAC_BUF_SIZE, wrk_buf, wrk_buf);
-    } else {					// LSB.
-      demodulator_hilbert(hlb_coeff_inv, hlb_state, DAC_BUF_SIZE, wrk_buf, wrk_buf);
-    }
+    demodulator_mixer(cwt_tbl, cwt_tbl + DAC_BUF_SIZE, DAC_BUF_SIZE, wrk_buf, wrk_buf + WRK_BUF_SIZE, wrk_buf);
+  } else if (config.demodulation == 2) {	// USB.
+    static float dem_state[47];
+    demodulator_hilbert(hlb_coeff, dem_state, DAC_BUF_SIZE, wrk_buf, wrk_buf + WRK_BUF_SIZE, wrk_buf);
+  } else {					// LSB.
+    static float dem_state[47];
+    demodulator_hilbert(hlb_coeff_inv, dem_state, DAC_BUF_SIZE, wrk_buf, wrk_buf + WRK_BUF_SIZE, wrk_buf);
   }
   time_end = micros(); stat.time_dem = time_end - time_bgn; time_bgn = time_end;
 
-  // Volume adjustment.
-  static float vol_ofst = 0.0;
-  amplifier(vol_ofst, ((1 << config.volume) - 1) * 1024.0f, 1024.0f, DAC_BUF_SIZE, wrk_buf, dac_buf_wr);
-  time_end = micros(); stat.time_amp = time_end - time_bgn; time_bgn = time_end;
+  // Automatic gain control.
+  const float agc_config[2] = {AGC_DECAY, AGC_THRESHOLD};
+  static float agc_state;
+  agc(agc_config, agc_state, DAC_BUF_SIZE, wrk_buf, wrk_buf);
+
+  // Convert to the DAC buffer.
+  for (int i = 0; i < DAC_BUF_SIZE; i++) {
+    dac_buf_wr[i] = __SSAT((int32_t)((1 << config.volume) * wrk_buf[i]), 11) + 2048;
+  }
 }
 
 // Process key inputs. Called by 1000Hz timer interruption.
@@ -169,9 +176,9 @@ void key_handler() {
       } else if (config.cursor == 2) {
         config.demodulation = constrain(config.demodulation + delta, 0, 3);
       } else if (config.cursor == 3) {
-        config.bpf = constrain(config.bpf + delta, 0, 8);
+        config.bpf = constrain(config.bpf + delta, 0, 6);
       } else if (config.cursor == 4) {
-        config.volume = constrain(config.volume + delta, 0, 15);
+        config.volume = constrain(config.volume + delta, 0, 10);
       }
     }
   } else {	// Waterfall mode.
@@ -204,7 +211,7 @@ void communicate() {
   } else if (cmd == 'B') {
     if (0 <= val && val <= 8) config.bpf = val;
   } else if (cmd == 'V') {
-    if (0 <= val && val <= 15) config.volume = val;
+    if (0 <= val && val <= 10) config.volume = val;
   } else if (cmd == 'G') {
     if (0 <= val && val <= 15) config.fft_gain = val;
   } else if (cmd == 'L') {
@@ -226,7 +233,6 @@ void communicate() {
     Serial.print("FIR: "); Serial.println(stat.time_fir);
     Serial.print("BPF: "); Serial.println(stat.time_bpf);
     Serial.print("DEM: "); Serial.println(stat.time_dem);
-    Serial.print("AMP: "); Serial.println(stat.time_amp);
     Serial.print("FFT: "); Serial.println(stat.freq_fft);
   }
 }
@@ -344,8 +350,8 @@ void setup() {
   config.cursor = 0;
   config.frequency = 594000;
   config.demodulation = 0;
-  config.bpf = 8;
-  config.volume = 12;
+  config.bpf = 6;
+  config.volume = 8;
   config.fft_gain = 10;
   config.fft_delay = 12;
 
@@ -353,8 +359,8 @@ void setup() {
   for (int i = 0; i < 31; i++) hlb_coeff_inv[i] = -hlb_coeff[i];
 
   // Make the CW tone table.
-  nco(ADC_FREQ / CIC_DCM_FACTOR / FIR_DCM_FACTOR, NCO_CALIB * CWT_FREQ, DAC_BUF_SIZE, nco_tbl);
-  for (int i = 0; i < 2 * DAC_BUF_SIZE; i++) cwt_tbl[i] = (float)nco_tbl[i] / 32767.0f;
+  nco(ADC_FREQ / CIC_DCM_FACTOR / FIR_DCM_FACTOR, NCO_CALIB * CWT_FREQ, DAC_BUF_SIZE, nco_tbl, nco_tbl + DAC_BUF_SIZE);
+  for (int i = 0; i < 2 * DAC_BUF_SIZE; i++) cwt_tbl[i] = (float)nco_tbl[i] / 32768.0f;
 
   // Make 5-color heatmap palette and logarithm table..
   for (int i = 0; i < 64; i++) {
@@ -389,7 +395,7 @@ void loop() {
   // NCO table update.
   if (nco_frequency != config.frequency && millis() >= nco_timer) {
     nco_frequency = config.frequency;
-    nco(ADC_FREQ, NCO_CALIB * config.frequency, ADC_BUF_SIZE, nco_tbl);
+    nco(ADC_FREQ, NCO_CALIB * config.frequency, ADC_BUF_SIZE, nco_tbl, nco_tbl + ADC_BUF_SIZE);
   }
 
   // Serial communication.

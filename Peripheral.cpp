@@ -310,7 +310,7 @@ void initTimer() {
 
 void startTimer(void (*tim_handler)()) {
   tim_callback = tim_handler;
-  tim->attachInterrupt([](HardwareTimer *t) {if (t == tim) tim_callback();});
+  tim->attachInterrupt(tim_callback);
   tim->setInterruptPriority(3, 0);
   tim->resume();
 }
