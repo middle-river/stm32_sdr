@@ -45,7 +45,7 @@
 <p>The band-pass filter which extracts audio signals is implemented as a three-stage biquad filter. Low-pass filters of 200, 500, 1 k, 2 k, 5 k, 10 k, and 20 kHz can be selected.</p>
 <p>I first tried to make a 6th order IIR filter but it was unstable, so the multi-stage biquad filter was chosen which was stable. FIR filters were not used since they were not enough shape. The sampling frequency of the signal is 46.875 kHz, which is unnecessarily high, so it is difficult to design filters for low frequencies.</p>
 <p>ARM Radio does not process the band-pass filter in time space but in frequency space using FFT. This approach was interesting but needs the additional step for recovering to time space by using like the overlap-save method, and was not adopted.</p>
-<p>This band-pass filter, as well as the previously mentioned FIR decimation filter and the Hilbert transform filter described later, was designed using the Python scipy package. The script used for designing the filters is available <a href="https&#58;//github.com/middle-river/stm32_sdr/tree/master/filter">here</a>. The frequency response of the band-pass filter is as follows&#58;</p>
+<p>This band-pass filter, as well as the previously mentioned FIR decimation filter and the Hilbert transform filter described later, was designed using the Python scipy package. The script used for designing the filters is available <a href="https&#58;//github.com/middle-river/stm32_sdr/tree/main/filter">here</a>. The frequency response of the band-pass filter is as follows&#58;</p>
 <div align="center">
 <figure style="display: inline-table;"><a href="filter_iir.png"><img height=200 src="filter_iir.png" border="2"><figcaption>Band-pass filter</figcaption></a></figure>
 </div>
@@ -175,7 +175,7 @@ static inline void decimator_fir(const float *coeff, float *state, int size, con
 <li>Waterfall Speed</li>
 </ul>
 </ul>
-<p>A 1 kHz timer interrupt is used to check input from the rotary encoder. Long-pressing and short-pressing are also recognized. A 16x32 font is used for the LCD, and is stored in ROM as a single image with the height of 16 pixels. <a href="https&#58;//github.com/middle-river/stm32_sdr/tree/master/font">This code</a> was used for converting the font data.</p>
+<p>A 1 kHz timer interrupt is used to check input from the rotary encoder. Long-pressing and short-pressing are also recognized. A 16x32 font is used for the LCD, and is stored in ROM as a single image with the height of 16 pixels. <a href="https&#58;//github.com/middle-river/stm32_sdr/tree/main/font">This code</a> was used for converting the font data.</p>
 <p>The waterfall plot is obtained with FFT from the signal after FIR decimation. It scrolls horizontally rather than vertically due to the restriction of the LCD buffer. A 5-color heat map is used for displaying. The signal strength needs to be converted to a logarithmic scale. Since precise conversion is not necessary, loop-unrolled binary search is used for looking up the index of a color palette with 64 colors.</p>
 <h2>Testing the Code</h2>
 <p>The signal processing code was debugged on a PC with various input signals. After programming the flash, I could successfully receive near AM stations using a few meters of wire as an antenna. However, long-wave JJY signals could not be received indoors.</p>
@@ -231,7 +231,7 @@ static inline void decimator_fir(const float *coeff, float *state, int size, con
 <p>必要な音声帯域の信号を抜き出して聴きやすくするためのバンドパスフィルターを3段のbiquad (双2次)フィルターで実装しています．200, 500, 1k, 2k, 5k, 10k, 20kHzのローパスフィルターを選べるようにしています．</p>
 <p>最初は6次のIIRフィルターで設計しようとしましたが不安定だったので，biquadフィルターを多段で使うことにしたら安定しました．FIRフィルターだと特性が緩やかすぎたので使いませんでした．処理する信号のサンプリング周波数が46.875kHzと必要以上に高いので，低い周波数のフィルターを作るのは難しくなります．</p>
 <p>なおARM Radioではバンドパスフィルターを時間空間で処理するのではなく，FFTで変換して周波数空間で処理しています．このアプローチにも興味があったのですが，最終的にoverlap-save法などで時間空間に戻す必要があり少し面倒になりそうなのでここでは採用しませんでした．</p>
-<p>このバンドパスフィルター，および前述のFIRデシメーションと後述のヒルベルト変換のフィルターはPythonのscipyパッケージを使って設計しました．設計に使ったスクリプトは<a href="https&#58;//github.com/middle-river/stm32_sdr/tree/master/filter">ここ</a>にあります．バンドパスフィルターの特性は下のようになりました．</p>
+<p>このバンドパスフィルター，および前述のFIRデシメーションと後述のヒルベルト変換のフィルターはPythonのscipyパッケージを使って設計しました．設計に使ったスクリプトは<a href="https&#58;//github.com/middle-river/stm32_sdr/tree/main/filter">ここ</a>にあります．バンドパスフィルターの特性は下のようになりました．</p>
 <div align="center">
 <figure style="display: inline-table;"><a href="filter_iir.png"><img height=200 src="filter_iir.png" border="2"><figcaption>バンドパスフィルター</figcaption></a></figure>
 </div>
@@ -361,7 +361,7 @@ static inline void decimator_fir(const float *coeff, float *state, int size, con
 <li>表示速度</li>
 </ul>
 </ul>
-<p>キー入力は，1kHzのタイマー割り込みでロータリーエンコーダからの入力を調べます．スイッチが押された場合長押しか短押しかの判定もします．LCDのフォントは扱いやすさを考えて16x32としました．高さ16ピクセルの一つの画像としてROMに格納しました．フォントデータ変換に使ったコードは<a href="https&#58;//github.com/middle-river/stm32_sdr/tree/master/font">ここ</a>にあります．</p>
+<p>キー入力は，1kHzのタイマー割り込みでロータリーエンコーダからの入力を調べます．スイッチが押された場合長押しか短押しかの判定もします．LCDのフォントは扱いやすさを考えて16x32としました．高さ16ピクセルの一つの画像としてROMに格納しました．フォントデータ変換に使ったコードは<a href="https&#58;//github.com/middle-river/stm32_sdr/tree/main/font">ここ</a>にあります．</p>
 <p>ウォーターフォール表示は，FIRデシメーション直後の信号をFFT変換して使っています．本当は垂直にスクロールしたいところですが，使用したLCDのバッファの都合で水平にスクロールしています．表示には5カラーのヒートマップを使いました．信号強度は対数に変換して表示する必要がありますが，log関数を実装するのが面倒だったのと，どうせ細かい色は目で区別できないので64色のカラーパレットがあれば充分と考えたため，ループ展開した二分探索でカラーパレットのインデックスを見つけるコードを書きました．SDRの処理が思ったよりも軽かったため，ウォーターフォール表示の処理も苦労せずに行えました．</p>
 <h2>動作テスト</h2>
 <p>信号処理のコードは，色々な入力信号に対する出力をPC上でシミュレーションしてデバッグしていました．そのおかげかSTM32に書き込んで動作させたところ，一発でAM放送の受信に成功しました．数メートルのコードをアンテナとして使い，近隣のAM放送局をいくつか試したところ受信できました．しかし長波JJYは室内で試した限り受信できませんでした．CWとSSBモードに関しては，シミュレーションで復調のテストを行っただけで実際の電波を受信してのテストはまだしていません．</p>

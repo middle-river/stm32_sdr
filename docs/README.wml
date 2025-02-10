@@ -133,7 +133,7 @@ ARM Radio does not process the band-pass filter in time space but in frequency s
 This approach was interesting but needs the additional step for recovering to time space by using like the overlap-save method, and was not adopted.
 
 This band-pass filter, as well as the previously mentioned FIR decimation filter and the Hilbert transform filter described later, was designed using the Python scipy package.
-The script used for designing the filters is available \[here\:https://github.com/middle-river/stm32_sdr/tree/master/filter\].
+The script used for designing the filters is available \[here\:https://github.com/middle-river/stm32_sdr/tree/main/filter\].
 The frequency response of the band-pass filter is as follows:
 
 \^{
@@ -279,7 +279,7 @@ Waterfall Mode
 A 1 kHz timer interrupt is used to check input from the rotary encoder.
 Long-pressing and short-pressing are also recognized.
 A 16x32 font is used for the LCD, and is stored in ROM as a single image with the height of 16 pixels.
-\[This code\:https://github.com/middle-river/stm32_sdr/tree/master/font\] was used for converting the font data.
+\[This code\:https://github.com/middle-river/stm32_sdr/tree/main/font\] was used for converting the font data.
 
 The waterfall plot is obtained with FFT from the signal after FIR decimation.
 It scrolls horizontally rather than vertically due to the restriction of the LCD buffer.
@@ -432,7 +432,7 @@ FIRフィルターだと特性が緩やかすぎたので使いませんでし�
 このアプローチにも興味があったのですが，最終的にoverlap-save法などで時間空間に戻す必要があり少し面倒になりそうなのでここでは採用しませんでした．
 
 このバンドパスフィルター，および前述のFIRデシメーションと後述のヒルベルト変換のフィルターはPythonのscipyパッケージを使って設計しました．
-設計に使ったスクリプトは\[ここ\:https://github.com/middle-river/stm32_sdr/tree/master/filter\]にあります．
+設計に使ったスクリプトは\[ここ\:https://github.com/middle-river/stm32_sdr/tree/main/filter\]にあります．
 バンドパスフィルターの特性は下のようになりました．
 
 \^{
@@ -575,7 +575,7 @@ Waterfallモード
 \-}
 
 キー入力は，1kHzのタイマー割り込みでロータリーエンコーダからの入力を調べます．スイッチが押された場合長押しか短押しかの判定もします．
-LCDのフォントは扱いやすさを考えて16x32としました．高さ16ピクセルの一つの画像としてROMに格納しました．フォントデータ変換に使ったコードは\[ここ\:https://github.com/middle-river/stm32_sdr/tree/master/font\]にあります．
+LCDのフォントは扱いやすさを考えて16x32としました．高さ16ピクセルの一つの画像としてROMに格納しました．フォントデータ変換に使ったコードは\[ここ\:https://github.com/middle-river/stm32_sdr/tree/main/font\]にあります．
 
 ウォーターフォール表示は，FIRデシメーション直後の信号をFFT変換して使っています．
 本当は垂直にスクロールしたいところですが，使用したLCDのバッファの都合で水平にスクロールしています．
